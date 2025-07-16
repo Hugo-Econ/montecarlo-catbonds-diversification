@@ -3,58 +3,106 @@
 Created on Tue Jul 15 12:37:32 2025
 @author: Hugo
 
-This script analyzes historical Cat Bond and SPY returns,
-fits distributions, evaluates them statistically, and runs
-a Monte Carlo simulation of two portfolios:
-  - 100% SPY
-  - 90% SPY / 10% Cat Bonds
+This script analyzes historical SPY, AGG, and Cat Bond (Swiss Re Index) returns, 
+fits appropriate distributions, and runs Monte Carlo simulations on four portfolio allocations:
+  - 100% S&P 500
+  - 80% S&P 500 / 20% Cat Bonds
+  - 80% S&P 500 / 20% AGG Bonds
+  - 80% S&P 500 / 10% Cat Bonds / 10% AGG Bonds
+
+Methodology
+===========
+- Monthly return data from 2006 to 2024
+- Distribution fitting:
+    • SPY & Cat Bonds: Student's t-distribution
+    • AGG Bonds: Normal distribution
+- Simulated 1,000 paths over 1-year and 10-year horizons
+- The draws account for the covariance matrix
+- Cat Bonds adjusted for a 1.5% annual ETF fee
+- Metrics: Final Wealth, Annual Return, Volatility, Sharpe Ratio, Max Drawdown, VaR (5%)
 
 Results Summary
 ===============
 
-🧪 Simulation Setup:
-- 100 independent simulations
-- Each simulation spans 12 months
-- Returns drawn from fitted Student's t-distributions (Shown lower that it is a best match)
-
-📊 Average Performance Over Simulations:
----------------------------------------
+📊 Median 1-Year Performance (1,000 Simulations, with Fee):
+-----------------------------------------------------------
 100% S&P 500:
-- Final Wealth:         117.88%
-- Annual Return:        16.71%
-- Annual Volatility:    13.89%
-- Sharpe Ratio:        122.22%
-- Max Drawdown:          7.38%
+- Final Wealth:         114.65%
+- Annual Return:        14.65%
+- Annual Volatility:    13.88%
+- Sharpe Ratio:        101.09%
+- Max Drawdown:          7.21%
 - VaR (5%):             -4.45%
 
-90% S&P 500 / 10% Cat Bonds:
-- Final Wealth:         116.59%
-- Annual Return:        15.57%
-- Annual Volatility:    12.51%
-- Sharpe Ratio:        126.08%
-- Max Drawdown:          6.54%
-- VaR (5%):             -3.97%
+80% S&P 500 / 20% Cat Bonds:
+- Final Wealth:         112.52%
+- Annual Return:        12.52%
+- Annual Volatility:    11.13%
+- Sharpe Ratio:        105.43%
+- Max Drawdown:          5.64%
+- VaR (5%):             -3.50%
 
-🏆 Outperformance Frequency (90/10 vs 100% SPY):
-----------------------------------------------
-- Final Wealth:         28% of (annual) simulations
-- Annual Return:        20%
-- Annual Volatility:     0%  (SPY always more volatile)
-- Sharpe Ratio:         96%
-- Max Drawdown:          1%  ✅ (90/10 had lower drawdown almost always)
-- VaR (5%):             99%  ✅ (much better tail protection)
+80% S&P 500 / 20% AGG Bonds:
+- Final Wealth:         112.00%
+- Annual Return:        12.00%
+- Annual Volatility:    11.19%
+- Sharpe Ratio:        104.76%
+- Max Drawdown:          5.70%
+- VaR (5%):             -3.51%
+
+📊 Median 10-Year Performance (1,000 Simulations):
+--------------------------------------------------
+100% S&P 500:
+- Final Wealth:         386.63%
+- Annual Return:        14.48%
+- Annual Volatility:    15.21%
+- Sharpe Ratio:         91.38%
+- Max Drawdown:         20.93%
+- VaR (5%):             -5.52%
+
+80% S&P 500 / 20% Cat Bonds:
+- Final Wealth:         330.09%
+- Annual Return:        12.68%
+- Annual Volatility:    12.20%
+- Sharpe Ratio:        100.03%
+- Max Drawdown:         16.10%
+- VaR (5%):             -4.34%
+
+80% S&P 500 / 20% AGG Bonds:
+- Final Wealth:         317.95%
+- Annual Return:        12.26%
+- Annual Volatility:    12.20%
+- Sharpe Ratio:         96.45%
+- Max Drawdown:         16.59%
+- VaR (5%):             -4.39%
+
+🏆 SPY 80 / Cat Bonds 20 vs SPY 80 / AGG 20 (with 1.5% fee):
+-----------------------------------------------------------
+Outperformance Frequency (out of 1,000 simulations):
+- Final Wealth:         56%
+- Annual Return:        56%
+- Sharpe Ratio:         56%
+- Max Drawdown:         46%
+- VaR (5%):             54%
 
 📌 Interpretation:
 ------------------
-Adding just 10% of Cat Bonds:
-- Slightly lowers return (~1% p.a.)
-- Consistently reduces downside risk (lower max drawdown, better VaR)
-- Sharpe ratio improves in **96%** of simulations
+Cat Bonds are an excellent source of uncorrelated returns (SPY–CatBond corr ≈ 0.25).
+Before applying a the 1.5% fee:
+- Cat Bonds **consistently outperform AGG Bonds** across most metrics
+- They improve Sharpe ratio and reduce drawdown risk
+- In a 20% allocation, Cat Bonds offer a **clear diversification edge**
+- Once the fee is included the advantages vanishes and become near identical to the typical 80/20. 
+- The 80/10/10 portfolio showed surprinsingly limited benefit, despite a 15% correlation between Cat Bonds and AGG, 
+  and a ~25% correlation with the equity market.
 
 Conclusion:
 -----------
-A 90/10 blend improves risk-adjusted performance and significantly reduces tail risk — with only a modest drop in expected return.
+While 100% equities still deliver the highest returns, introducing Cat Bonds can improve portfolio efficiency. 
+However, the management fee is an hindrance; their performance after fees are mitigated and suggests that 
+wider adoption — and lower-cost access — could make them a valuable addition to long-term portfolios.
 """
+
 # -------------------------
 # 📦 Imports
 # -------------------------
@@ -63,12 +111,15 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as stats
-from scipy.stats import skewnorm, t
+from scipy.stats import skewnorm, t, norm
+from scipy.linalg import cholesky
+from numpy.random import default_rng
 # import wrds  # Uncomment if using WRDS
 
 # -------------------------
 # 📈 Load Cat Bond Returns (2006–2024)
 # -------------------------
+#cat_bond_data = See Below.
 
 
 # Create DataFrame from dictionary
@@ -89,6 +140,7 @@ cat_bond_df = cat_bond_df.set_index('Date')
 
 # db = wrds.Connection()  # Uncomment to use WRDS
 
+##SPY
 query_SPY = """
     SELECT msf.date, msf.ret
     FROM crsp.msf AS msf
@@ -106,21 +158,51 @@ SPY_df['date'] = pd.to_datetime(SPY_df['date'])
 SPY_df = SPY_df.set_index('date').to_period('M')   
 SPY_df = SPY_df.rename(columns={'ret': 'SPY_Return'})
 
+##Bonds
+query_AGG = """
+    SELECT msf.date, msf.ret
+    FROM crsp.msf AS msf
+    JOIN crsp.stocknames AS sn
+        ON msf.permno = sn.permno
+    WHERE sn.ticker = 'AGG'
+      AND msf.date BETWEEN '2006-01-01' AND '2024-12-31'
+"""
+
+# Run the query
+AGG_df = db.raw_sql(query_AGG)
+
+# Format and clean
+AGG_df['date'] = pd.to_datetime(AGG_df['date'])
+AGG_df = AGG_df.set_index('date').to_period('M')   
+AGG_df = AGG_df.rename(columns={'ret': 'AGG_Return'})
+
 # -------------------------
 # 🔗 Merge SPY and Cat Bonds
 # -------------------------
 merged_df = pd.merge(SPY_df, cat_bond_df, left_index=True, right_index=True)
-merged_df.columns = ['SPY_Return', 'Year', 'Month', 'CatBond_Return']
+merged_df = pd.merge(merged_df, AGG_df, left_index=True, right_index=True)
+merged_df.columns = ['SPY_Return', 'Year', 'Month', 'CatBond_Return','AGG_Return']
 
 # -------------------------
 # 📊 Correlation
 # -------------------------
-correlation = merged_df[['SPY_Return', 'CatBond_Return']].corr().iloc[0, 1]
-print(f"Correlation between SPY and Cat Bond returns: {correlation:.4f}")
+correlation_matrix = merged_df[['SPY_Return', 'CatBond_Return', 'AGG_Return']].corr()
 
+# Display
+print("📊 Correlation Matrix:")
+print(correlation_matrix.round(4))
 # -------------------------
 # 🔍 Explore Distributions
 # -------------------------
+
+# Bond stats
+bond_returns = merged_df['AGG_Return'].dropna().values
+print("Cat Bond Return Stats:")
+print("Median:", np.median(bond_returns))
+print("Mean:", np.mean(bond_returns))
+print("Std:", np.std(bond_returns))
+print("Skew:", stats.skew(bond_returns))
+print("Kurtosis:", stats.kurtosis(bond_returns))
 
 # Cat Bond stats
 cat_bond_returns = merged_df['CatBond_Return'].dropna().values
@@ -139,6 +221,19 @@ print("Mean:", np.mean(sp500_returns))
 print("Std:", np.std(sp500_returns))
 print("Skew:", stats.skew(sp500_returns))
 print("Kurtosis:", stats.kurtosis(sp500_returns))
+
+# Bonds (Normal)
+mu_bond, std_bond = stats.norm.fit(bond_returns)
+
+plt.figure(figsize=(10, 6))
+plt.hist(bond_returns, bins=30, density=True, alpha=0.6, label='Empirical')
+x = np.linspace(bond_returns.min(), bond_returns.max(), 100)
+plt.plot(x, stats.norm.pdf(x, mu_bond, std_bond), 'r', label='Normal Fit')
+plt.title('AGG (Bond ETF) Return Distribution')
+plt.legend()
+plt.grid(True)
+plt.show()
+
 
 # Plot Cat Bond distribution
 mu_cb, std_cb = stats.norm.fit(cat_bond_returns)
@@ -193,91 +288,41 @@ print(f"\nSPY t-dist fit: df={params_spy_t[0]:.2f}, loc={params_spy_t[1]:.4f}, s
 params_CatB_t = stats.t.fit(cat_bond_returns)
 print(f"Cat Bond t-dist fit: df={params_CatB_t[0]:.2f}, loc={params_CatB_t[1]:.4f}, scale={params_CatB_t[2]:.4f}")
 
+mu_bond, std_bond = norm.fit(bond_returns)
+
+# Print fitted parameters
+print(f"AGG normal fit: mean={mu_bond:.4f}, std={std_bond:.4f}")
+
 # -------------------------
 # 🧪 Monte Carlo Simulation
 # -------------------------
 
-# 1. Extract fitted parameters
+# %% 1000 1-year simulation 
+# -------------------------------------
+# 🎯 Use fitted distribution parameters
+# -------------------------------------
+
+# SPY (t-distribution)
 df_spy, loc_spy, scale_spy = params_spy_t
+
+# Cat Bonds (t-distribution)
 df_cb, loc_cb, scale_cb = params_CatB_t
 
-# 2. Simulate 1,000 months of returns
-n_months = 1000
-rf_monthly = 0.0005  # risk-free return ≈ 0.6% annual
+# AGG (normal distribution)
+mu_bond, std_bond = norm.fit(bond_returns)
 
-sim_spy = t.rvs(df_spy, loc=loc_spy, scale=scale_spy, size=n_months)
-sim_cb = t.rvs(df_cb, loc=loc_cb, scale=scale_cb, size=n_months)
+# -------------------------------------
+# ⚙️ Simulation settings
+# -------------------------------------
+n_months = 12       # Simulate 1-year forward
+n_sims = 1000       # Run 1000 simulations
+rf_monthly = 0.0005 # Monthly risk-free rate
 
-# 3. Define portfolios
-r_100_spy = sim_spy
-r_90_10 = 0.9 * sim_spy + 0.1 * sim_cb
-
-# 4. Store returns in DataFrame
-df_sim = pd.DataFrame({
-    'SPY_100': r_100_spy,
-    'SPY_90_CB_10': r_90_10
-})
-
-# 5. Compute cumulative wealth
-wealth_df = (1 + df_sim).cumprod()
-
-# 6. Portfolio metrics function
+# -------------------------------------
+# 📊 Metric computation function
+# -------------------------------------
 def compute_metrics(returns, rf=rf_monthly):
-    ann_ret = np.mean(returns) * 12
-    ann_vol = np.std(returns) * np.sqrt(12)
-    sharpe = (ann_ret - rf * 12) / ann_vol
-    wealth = (1 + returns).cumprod()
-    drawdown = 1 - wealth / wealth.cummax()
-    return {
-        'Annual Return': ann_ret,
-        'Annual Volatility': ann_vol,
-        'Sharpe Ratio': sharpe,
-        'Max Drawdown': drawdown.max(),
-        'VaR (5%)': np.percentile(returns, 5)
-    }
-
-# 7. Compute metrics
-metrics_spy = compute_metrics(df_sim['SPY_100'])
-metrics_90_10 = compute_metrics(df_sim['SPY_90_CB_10'])
-
-# 8. Print results
-print("\n🔍 Portfolio Performance Metrics")
-print("100% S&P 500:")
-for k, v in metrics_spy.items():
-    print(f"{k}: {v:.2%}")
-
-print("\n90% S&P 500 / 10% Cat Bonds:")
-for k, v in metrics_90_10.items():
-    print(f"{k}: {v:.2%}")
-
-# 9. Plot cumulative wealth
-plt.figure(figsize=(10, 6))
-plt.plot(wealth_df['SPY_100'], label='100% S&P 500')
-plt.plot(wealth_df['SPY_90_CB_10'], label='90% SPY / 10% Cat Bonds')
-plt.title('Cumulative Wealth (Monte Carlo Simulated)')
-plt.xlabel('Months')
-plt.ylabel('Portfolio Value')
-plt.legend()
-plt.grid(True)
-plt.tight_layout()
-plt.show()
-
-
-#100 sims
-
-
-# -----------------------------
-# 2. Simulation Settings
-# -----------------------------
-n_months = 12           # Each simulation lasts 100 months (~8.3 years)
-n_sims = 100             # Number of Monte Carlo simulations
-rf_monthly = 0.0005      # Monthly risk-free rate (~0.6% annual)
-
-# -----------------------------
-# 3. Metric Computation Function
-# -----------------------------
-def compute_metrics(returns, rf=rf_monthly):
-    ann_ret = np.mean(returns) * 12
+    ann_ret = (np.prod(1 + returns))**(12 / len(returns)) - 1
     ann_vol = np.std(returns) * np.sqrt(12)
     sharpe = (ann_ret - rf * 12) / ann_vol
     wealth = pd.Series((1 + returns).cumprod())
@@ -291,77 +336,274 @@ def compute_metrics(returns, rf=rf_monthly):
         'VaR (5%)': np.percentile(returns, 5)
     }
 
-# -----------------------------
-# 4. Run Simulations
-# -----------------------------
-metrics_list_spy = []
-metrics_list_90_10 = []
+# -------------------------------------
+# 🔁 Run simulations
+# -------------------------------------
+results = {
+    'SPY_100': [],
+    'SPY_80_CB_20': [],
+    'SPY_80_AGG_20': [],
+    'SPY_80_CB_10_AGG_10': []
+}
+# Cholesky decomposition
+L = cholesky(cor_matrix, lower=True)
+
+# RNG
+rng = default_rng()
 
 for _ in range(n_sims):
-    # Simulate monthly returns
-    sim_spy = t.rvs(df_spy, loc=loc_spy, scale=scale_spy, size=n_months)
-    sim_cb = t.rvs(df_cb, loc=loc_cb, scale=scale_cb, size=n_months)
+    # Step 1: Generate uncorrelated standard normals
+    z = rng.standard_normal(size=(3, n_months))  # 3 assets × months
+
+    # Step 2: Apply Cholesky to induce correlation
+    correlated_z = L @ z  # Shape: (3, n_months)
+
+    # Step 3: Transform each series to their respective distributions
+    sim_spy = t.ppf(norm.cdf(correlated_z[0]), df=df_spy) * scale_spy + loc_spy
+    sim_cb = t.ppf(norm.cdf(correlated_z[1]), df=df_cb) * scale_cb + loc_cb_net  # with fee
+    sim_bond = correlated_z[2] * std_bond + mu_bond  # normal
+
+    # Step 4: Portfolio combinations
+    results['SPY_100'].append(compute_metrics(sim_spy))
+    results['SPY_80_CB_20'].append(compute_metrics(0.8 * sim_spy + 0.2 * sim_cb))
+    results['SPY_80_AGG_20'].append(compute_metrics(0.8 * sim_spy + 0.2 * sim_bond))
+    results['SPY_80_CB_10_AGG_10'].append(compute_metrics(0.8 * sim_spy + 0.1 * sim_cb + 0.1 * sim_bond))
+
+# -------------------------------------
+# 📦 Convert to DataFrames
+# -------------------------------------
+df_metrics = {k: pd.DataFrame(v) for k, v in results.items()}
+
+print("📊 Median 1-year Metrics Over 1000 Simulations\n")
+
+# Loop through each portfolio and print median values
+for name in ['SPY_100', 'SPY_80_CB_20', 'SPY_80_AGG_20', 'SPY_80_CB_10_AGG_10']:
+    print(f"{name.replace('_', ' ')}:")
+    print(df_metrics[name].median().apply(lambda x: f"{x:.2%}"))
+    print()
+
+
+# %% 1000 10-year simulation 
+# -------------------------------------
+# ⚙️ Simulation settings
+# -------------------------------------
+n_months = 12*10       # Simulate 1-year forward
+n_sims = 1000       # Run 1000 simulations
+rf_monthly = 0.0005 # Monthly risk-free rate
+
+# -------------------------------------
+# 📊 Metric computation function
+# -------------------------------------
+def compute_metrics(returns, rf=rf_monthly):
+    ann_ret = (np.prod(1 + returns))**(12 / len(returns)) - 1
+    ann_vol = np.std(returns) * np.sqrt(12)
+    sharpe = (ann_ret - rf * 12) / ann_vol
+    wealth = pd.Series((1 + returns).cumprod())
+    drawdown = 1 - wealth / wealth.cummax()
+    return {
+        'Final Wealth': wealth.iloc[-1],
+        'Annual Return': ann_ret,
+        'Annual Volatility': ann_vol,
+        'Sharpe Ratio': sharpe,
+        'Max Drawdown': drawdown.max(),
+        'VaR (5%)': np.percentile(returns, 5)
+    }
+
+# -------------------------------------
+# 🔁 Run simulations
+# -------------------------------------
+results_10 = {
+    'SPY_100': [],
+    'SPY_80_CB_20': [],
+    'SPY_80_AGG_20': [],
+    'SPY_80_CB_10_AGG_10': []
+}
+
+for _ in range(n_sims):
+    # Step 1: Generate uncorrelated standard normals
+    z = rng.standard_normal(size=(3, n_months))  # 3 assets × months
+
+    # Step 2: Apply Cholesky to induce correlation
+    correlated_z = L @ z  # Shape: (3, n_months)
+
+    # Step 3: Transform each series to their respective distributions
+    sim_spy = t.ppf(norm.cdf(correlated_z[0]), df=df_spy) * scale_spy + loc_spy
+    sim_cb = t.ppf(norm.cdf(correlated_z[1]), df=df_cb) * scale_cb + loc_cb_net  # with fee
+    sim_bond = correlated_z[2] * std_bond + mu_bond  # normal
+
+    # Step 4: Portfolio combinations
+    results_10['SPY_100'].append(compute_metrics(sim_spy))
+    results_10['SPY_80_CB_20'].append(compute_metrics(0.8 * sim_spy + 0.2 * sim_cb))
+    results_10['SPY_80_AGG_20'].append(compute_metrics(0.8 * sim_spy + 0.2 * sim_bond))
+    results_10['SPY_80_CB_10_AGG_10'].append(compute_metrics(0.8 * sim_spy + 0.1 * sim_cb + 0.1 * sim_bond))
+
+
+# -------------------------------------
+# 📦 Convert to DataFrames
+# -------------------------------------
+df_metrics_10 = {k: pd.DataFrame(v) for k, v in results_10.items()}
+
+print("📊 Median Metrics for 10 years Over 1000 Simulations\n")
+
+# Loop through each portfolio and print median values
+for name in ['SPY_100', 'SPY_80_CB_20', 'SPY_80_AGG_20', 'SPY_80_CB_10_AGG_10']:
+    print(f"{name.replace('_', ' ')}:")
+    print(df_metrics_10[name].median().apply(lambda x: f"{x:.2%}"))
+    print()
+
+# -------------------------------------
+# Frequency Comparison
+# -------------------------------------
+##80/20 Cat Bonds Vs. Agg Bonds
+# Define the two portfolios
+cb_port = df_metrics_10['SPY_80_CB_20']
+agg_port = df_metrics_10['SPY_80_AGG_20']
+
+# Compare metrics (row-by-row, same metric)
+comparison = cb_port > agg_port  # DataFrame: True where CB outperforms
+
+# Calculate how often CB outperformed AGG on each metric
+dominance_ratio = comparison.mean()
+
+print("✅ How often SPY 80 / Cat Bonds 20 outperformed SPY 80 / AGG 20 (out of 1000 simulations):")
+print(dominance_ratio.apply(lambda x: f"{x:.0%}"))
+
+
+# %% 1000 1-year simulation, WITH FEE
+# -------------------------------------
+# 🎯 Use fitted distribution parameters
+# -------------------------------------
+
+
+monthly_fee = (1 + 0.015)**(1/12) - 1  # ≈ 0.00124
+loc_cb_net  = loc_cb - monthly_fee
+
+# -------------------------------------
+# ⚙️ Simulation settings
+# -------------------------------------
+n_months = 12       # Simulate 1-year forward
+n_sims = 1000       # Run 1000 simulations
+rf_monthly = 0.0005 # Monthly risk-free rate
+
+# -------------------------------------
+# 📊 Metric computation function
+# -------------------------------------
+def compute_metrics(returns, rf=rf_monthly):
+    ann_ret = (np.prod(1 + returns))**(12 / len(returns)) - 1
+    ann_vol = np.std(returns) * np.sqrt(12)
+    sharpe = (ann_ret - rf * 12) / ann_vol
+    wealth = pd.Series((1 + returns).cumprod())
+    drawdown = 1 - wealth / wealth.cummax()
+    return {
+        'Final Wealth': wealth.iloc[-1],
+        'Annual Return': ann_ret,
+        'Annual Volatility': ann_vol,
+        'Sharpe Ratio': sharpe,
+        'Max Drawdown': drawdown.max(),
+        'VaR (5%)': np.percentile(returns, 5)
+    }
+
+# -------------------------------------
+# 🔁 Run simulations
+# -------------------------------------
+results_fee = {
+    'SPY_100': [],
+    'SPY_80_CB_20': [],
+    'SPY_80_AGG_20': [],
+    'SPY_80_CB_10_AGG_10': []
+}
+
+for _ in range(n_sims):
+    # Step 1: Generate uncorrelated standard normals
+    z = rng.standard_normal(size=(3, n_months))  # 3 assets × months
+
+    # Step 2: Apply Cholesky to induce correlation
+    correlated_z = L @ z  # Shape: (3, n_months)
+
+    # Step 3: Transform each series to their respective distributions
+    sim_spy = t.ppf(norm.cdf(correlated_z[0]), df=df_spy) * scale_spy + loc_spy
+    sim_cb = t.ppf(norm.cdf(correlated_z[1]), df=df_cb) * scale_cb + loc_cb_net  # with fee
+    sim_bond = correlated_z[2] * std_bond + mu_bond  # normal
+
+    # Step 4: Portfolio combinations
+    results_fee['SPY_100'].append(compute_metrics(sim_spy))
+    results_fee['SPY_80_CB_20'].append(compute_metrics(0.8 * sim_spy + 0.2 * sim_cb))
+    results_fee['SPY_80_AGG_20'].append(compute_metrics(0.8 * sim_spy + 0.2 * sim_bond))
+    results_fee['SPY_80_CB_10_AGG_10'].append(compute_metrics(0.8 * sim_spy + 0.1 * sim_cb + 0.1 * sim_bond))
+
+# -------------------------------------
+# 📦 Convert to DataFrames
+# -------------------------------------
+df_metrics_fee = {k: pd.DataFrame(v) for k, v in results_fee.items()}
+
+print("📊 Median 1-year Metrics Over 1000 Simulations **WITH 1.5% FEE** \n")
+
+# Loop through each portfolio and print median values
+for name in ['SPY_100', 'SPY_80_CB_20', 'SPY_80_AGG_20','SPY_80_CB_10_AGG_10']:
+    print(f"{name.replace('_', ' ')}:")
+    print(df_metrics_fee[name].median().apply(lambda x: f"{x:.2%}"))
+    print()
     
-    # Portfolio 1: 100% SPY
-    metrics_list_spy.append(compute_metrics(sim_spy))
-    
-    # Portfolio 2: 90% SPY / 10% Cat Bonds
-    mixed_returns = 0.9 * sim_spy + 0.1 * sim_cb
-    metrics_list_90_10.append(compute_metrics(mixed_returns))
+# -------------------------------------
+# Frequency Comparison
+# -------------------------------------
+##80/20 Cat Bonds Vs. Agg Bonds
+# Define the two portfolios
+cb_port = df_metrics_fee['SPY_80_CB_20']
+agg_port = df_metrics_fee['SPY_80_AGG_20']
 
-# Convert results to DataFrames
-metrics_df_spy = pd.DataFrame(metrics_list_spy)
-metrics_df_90_10 = pd.DataFrame(metrics_list_90_10)
+# Compare metrics (row-by-row, same metric)
+comparison = cb_port > agg_port  # DataFrame: True where CB outperforms
+
+# Calculate how often CB outperformed AGG on each metric
+dominance_ratio = comparison.mean()
+
+print("✅ How often SPY 80 / Cat Bonds 20 outperformed SPY 80 / AGG 20 **WITH FEE**:")
+print(dominance_ratio.apply(lambda x: f"{x:.0%}"))
+
+## 80/20 Cat Bonds vs. 80/10/10 Cat Bonds + AGG
+# Define the two portfolios
+cb_port = df_metrics_fee['SPY_80_CB_20']
+agg_port = df_metrics_fee['SPY_80_CB_10_AGG_10']
+
+# Compare metrics (row-by-row, same metric)
+comparison = cb_port > agg_port  # DataFrame: True where CB outperforms
+
+# Calculate how often CB outperformed AGG on each metric
+dominance_ratio = comparison.mean()
+
+print("✅ How often SPY 80 / Cat Bonds 20 outperformed SPY 80 / 10% Cat + 10% AGG (with fee):")
+print(dominance_ratio.apply(lambda x: f"{x:.0%}"))
 
 
-# Compare performance per simulation
-comparison = metrics_df_90_10 > metrics_df_spy
 
-# Calculate how often 90/10 outperformed 100% SPY
-outperformance_ratio = comparison.mean()
+# -------------------------
+# 📈 Load Cat Bond Returns (2006–2024)
+# -------------------------
+cat_bond_data = {
+    2024: [1.17, 1.1, 0.76, 0.5, 0.01, 0.76, 1.34, 1.69, 1.9, 0.82, 1.04, 1.32],
+    2023: [1.11, 0.84, 1.14, 1.12, 1.26, 1.29, 0.81, 1.48, 1.31, 1.42, 0.74, 0.57],
+    2022: [0.25, 0.08, 0.03, 0.00, 0.07, -0.09, 0.24, 0.80, -6.88, 0.97, 1.23, 1.35],
+    2021: [0.13, -0.6, 0.26, 0.27, 0.57, 0.31, 0.18, -0.43, -0.47, 0.2, 0.4, 0.23],
+    2020: [0.61, 0.32, -0.7, -0.16, 0.12, 0.67, 0.69, 0.69, 1.07, -0.08, -0.04, 0.24],
+    2019: [0.52, -0.01, -0.08, -0.69, -1.13, 0.27, 0.41, 0.09, 1.42, -0.39, 0.22, 0.3],
+    2018: [0.54, 0.08, -0.24, -0.28, 0.19, 0.27, 0.61, 0.45, -0.08, -0.81, -3.68, -0.97],
+    2017: [0.36, 0.32, 0.21, 0.15, 0.19, 0.4, 0.56, -0.31, -8.61, 0.4, 0.68, 0.27],
+    2016: [0.21, 0.53, 0.4, 0.4, 0.04, 0.26, 0.41, 0.86, 1.03, 0.42, 0.31, 0.18],
+    2015: [0.28, 0.28, 0.25, 0.31, 0.12, 0.21, 0.34, 0.2, 0.11, 0.09, 0.15, 0.17],
+    2014: [0.37, 0.32, 0.29, 0.25, 0.27, 0.31, 0.29, 0.28, 0.24, 0.22, 0.18, 0.24],
+    2013: [1.5, 0.7, 0.89, 0.95, 0.68, 0.45, 0.71, 0.73, 0.78, 1.05, 0.62, 0.41],
+    2012: [0.85, 0.45, 0.38, 0.33, 0.05, 0.19, 0.52, 0.75, 0.58, 0.15, 0.45, 0.3],
+    2011: [0.65, 0.45, 0.15, 0.35, 0.25, 0.22, 0.29, 0.15, -0.35, 0.25, 0.15, 0.42],
+    2010: [0.45, 0.38, 0.52, 0.48, 0.35, 0.42, 0.55, 0.62, 0.58, 0.45, 0.32, 0.41],
+    2009: [0.35, 0.28, 0.45, 0.52, 0.48, 0.55, 0.65, 0.72, 0.68, 0.58, 0.45, 0.52],
+    2008: [0.45, 0.38, 0.25, -0.15, 0.22, 0.18, 0.25, -0.52, -1.85, -3.25, -0.85, -0.45],
+    2007: [1.25, 0.85, 0.95, 0.78, 0.82, 0.68, 0.72, 0.55, 0.65, 0.85, 0.62, 0.58],
+    2006: [0.85, 0.65, 0.72, 0.68, 0.55, 0.62, 0.75, 0.82, 0.78, 0.65, 0.58, 0.72]
+}
 
-# Display results
-print("✅ How often 90/10 outperformed 100% SPY (out of 100 simulations):")
-print(outperformance_ratio.apply(lambda x: f"{x:.0%}"))
-
-# -----------------------------
-# 5. Plot Final Wealth Distribution
-# -----------------------------
-plt.figure(figsize=(10, 6))
-plt.hist(metrics_df_spy['Final Wealth'], bins=20, alpha=0.6, label='100% S&P 500')
-plt.hist(metrics_df_90_10['Final Wealth'], bins=20, alpha=0.6, label='90% SPY / 10% Cat Bonds')
-plt.title('Distribution of Final Portfolio Wealth\n(100 Simulations, 100 Months Each)')
-plt.xlabel('Final Portfolio Value')
-plt.ylabel('Frequency')
-plt.legend()
-plt.grid(True)
-plt.tight_layout()
-plt.show()
-
-# -----------------------------
-# 6. Plot Distributions of Other Metrics
-# -----------------------------
-metrics_to_plot = ['Annual Return', 'Annual Volatility', 'Sharpe Ratio', 'Max Drawdown', 'VaR (5%)']
-
-for metric in metrics_to_plot:
-    plt.figure(figsize=(10, 5))
-    plt.hist(metrics_df_spy[metric], bins=20, alpha=0.6, label='100% S&P 500')
-    plt.hist(metrics_df_90_10[metric], bins=20, alpha=0.6, label='90% SPY / 10% Cat Bonds')
-    plt.title(f'Distribution of {metric} Across Simulations')
-    plt.xlabel(metric)
-    plt.ylabel('Frequency')
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
-# -----------------------------
-# 7. Summary Statistics
-# -----------------------------
-print("📊 Average Metrics Over 100 Simulations:\n")
-
-print("100% S&P 500:")
-print(metrics_df_spy.mean().apply(lambda x: f"{x:.2%}"))
-
-print("\n90% S&P 500 / 10% Cat Bonds:")
-print(metrics_df_90_10.mean().apply(lambda x: f"{x:.2%}"))
+cor_matrix = np.array([
+    [1.0,        0.254011, 0.246423],
+    [0.254011,   1.0,      0.150656],
+    [0.246423,   0.150656, 1.0]
+])
