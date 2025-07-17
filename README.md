@@ -1,54 +1,50 @@
-# Monte Carlo Simulation: Cat Bonds for Risk Diversification
+# SPY, AGG, and Cat Bond Portfolio Motecarlo Simulation
 
-This project tests whether catastrophe (cat) bonds can serve as an effective diversification tool in an equity portfolio. It compares two portfolios using historical return modeling and Monte Carlo simulation:
+This script analyzes historical returns and runs Monte Carlo simulations for four portfolio allocations:
+- 100% S&P 500  
+- 80% S&P 500 / 20% Cat Bonds  
+- 80% S&P 500 / 20% AGG Bonds  
+- 80% S&P 500 / 10% Cat Bonds / 10% AGG Bonds  
 
-- **100% S&P 500**
-- **90% S&P 500 / 10% Cat Bonds**
+## Methodology
+- Monthly returns (2006–2024)
+- Distributions:
+  - SPY & Cat Bonds: Student’s t
+  - AGG Bonds: Normal
+- 1,000 simulations over 1- and 10-year horizons
+- Covariance-based random draws
+- 1.5% annual ETF fee applied to Cat Bonds
+- Metrics: Final Wealth, Annual Return, Volatility, Sharpe, Max Drawdown, VaR (5%)
 
----
+## Results Summary
 
-## 🔬 Methodology
+### Median 1-Year Returns (after fee)
+| Portfolio                     | Wealth | Return | Volatility | Sharpe | Drawdown | VaR (5%) |
+|------------------------------|--------|--------|------------|--------|-----------|----------|
+| 100% SPY                     | 114.7% | 14.7%  | 13.9%      | 101.1% | 7.2%      | -4.5%    |
+| 80/20 Cat Bonds              | 112.5% | 12.5%  | 11.1%      | 105.4% | 5.6%      | -3.5%    |
+| 80/20 AGG                    | 112.0% | 12.0%  | 11.2%      | 104.8% | 5.7%      | -3.5%    |
 
-- Historical monthly returns (2006–2024) for SPY and Swiss Re Cat Bond Index were used.
-- Distributions were fitted using a Student’s t-distribution (best statistical match).
-- 100 Monte Carlo simulations were run, each covering a 12-month period.
-- Metrics computed: annual return, volatility, Sharpe ratio, max drawdown, and Value-at-Risk (VaR).
+### Median 10-Year Returns
+| Portfolio                     | Wealth | Return | Volatility | Sharpe | Drawdown | VaR (5%) |
+|------------------------------|--------|--------|------------|--------|-----------|----------|
+| 100% SPY                     | 386.6% | 14.5%  | 15.2%      | 91.4%  | 20.9%     | -5.5%    |
+| 80/20 Cat Bonds              | 330.1% | 12.7%  | 12.2%      | 100.0% | 16.1%     | -4.3%    |
+| 80/20 AGG                    | 318.0% | 12.3%  | 12.2%      | 96.5%  | 16.6%     | -4.4%    |
 
----
+### Head-to-Head: SPY 80 / Cat 20 vs SPY 80 / AGG 20
+| Metric         | Cat Outperformance Rate |
+|----------------|--------------------------|
+| Final Wealth   | 56%                      |
+| Annual Return  | 56%                      |
+| Sharpe Ratio   | 56%                      |
+| Max Drawdown   | 46%                      |
+| VaR (5%)       | 54%                      |
 
-## 📊 Key Results (Average of 100 Simulations)
+## Key Takeaways
+- Cat Bonds (pre-fee) outperform AGG across most metrics
+- Offer diversification (corr ≈ 0.25 with SPY)
+- Post-fee, benefits largely offset
+- 80/10/10 mix provides limited advantage
+- Fee reduction could make Cat Bonds a valuable addition
 
-| Metric         | 100% S&P 500 | 90/10 Portfolio |
-|----------------|--------------|-----------------|
-| Final Wealth   | 117.88%      | 116.59%         |
-| Annual Return  | 16.71%       | 15.57%          |
-| Volatility     | 13.89%       | 12.51%          |
-| Sharpe Ratio   | 122.22%      | **126.08%**     |
-| Max Drawdown   | 7.38%        | **6.54%**       |
-| VaR (5%)       | -4.45%       | **-3.97%**      |
-
----
-
-## 🏆 How Often 90/10 Outperformed SPY
-
-- Sharpe Ratio: **96%** of simulations
-- VaR (5%): **99%**
-- Max Drawdown: 99% had lower or equal drawdown
-- Final Wealth: 28%
-- Annual Return: 20%
-- Volatility: 0% (SPY always more volatile)
-
----
-
-## 📌 Conclusion
-
-Adding just **10% Cat Bonds**:
-- Slightly reduces return (~1% p.a.)
-- Significantly lowers downside risk
-- Improves Sharpe ratio in nearly all scenarios
-
-Cat Bonds offer strong potential as a **non-correlated diversifier** in equity-heavy portfolios.
-
----
-
-*Author: Hugo – July 2025*
