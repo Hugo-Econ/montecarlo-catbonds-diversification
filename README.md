@@ -16,6 +16,13 @@ This script analyzes historical returns and runs Monte Carlo simulations for fou
 - 1.5% annual ETF fee applied to Cat Bonds
 - Metrics: Final Wealth, Annual Return, Volatility, Sharpe, Max Drawdown, VaR (5%)
 
+## Key Takeaways
+- Cat Bonds (pre-fee) outperform AGG across most metrics
+- Offer diversification (corr ≈ 0.25 with SPY)
+- Post-fee, benefits largely offset
+- 80/10/10 mix provides limited advantage
+- Fee reduction could make Cat Bonds a valuable addition
+
 ## Results Summary
 
 ### Median 1-Year Returns (after fee)
@@ -40,11 +47,4 @@ This script analyzes historical returns and runs Monte Carlo simulations for fou
 | Sharpe Ratio   | 56%                      |
 | Max Drawdown   | 46%                      |
 | VaR (5%)       | 54%                      |
-
-## Key Takeaways
-- Cat Bonds (pre-fee) outperform AGG across most metrics
-- Offer diversification (corr ≈ 0.25 with SPY)
-- Post-fee, benefits largely offset
-- 80/10/10 mix provides limited advantage
-- Fee reduction could make Cat Bonds a valuable addition
 
