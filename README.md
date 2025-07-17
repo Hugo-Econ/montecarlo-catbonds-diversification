@@ -6,6 +6,13 @@ This script analyzes historical returns and runs Monte Carlo simulations for fou
 - 80% S&P 500 / 20% AGG Bonds  
 - 80% S&P 500 / 10% Cat Bonds / 10% AGG Bonds  
 
+## Key Takeaways
+- Cat Bonds (pre-fee) outperform AGG across most metrics
+- Offer diversification (corr ≈ 0.25 with SPY)
+- Post-fee, benefits largely offset
+- 80/10/10 mix provides limited advantage
+- Fee reduction could make Cat Bonds a valuable addition
+
 ## Methodology
 - Monthly returns (2006–2024)
 - Distributions:
@@ -15,13 +22,6 @@ This script analyzes historical returns and runs Monte Carlo simulations for fou
 - Covariance-based random draws
 - 1.5% annual ETF fee applied to Cat Bonds
 - Metrics: Final Wealth, Annual Return, Volatility, Sharpe, Max Drawdown, VaR (5%)
-
-## Key Takeaways
-- Cat Bonds (pre-fee) outperform AGG across most metrics
-- Offer diversification (corr ≈ 0.25 with SPY)
-- Post-fee, benefits largely offset
-- 80/10/10 mix provides limited advantage
-- Fee reduction could make Cat Bonds a valuable addition
 
 ## Results Summary
 
